@@ -1,0 +1,48 @@
+name: AI Music Generator Engine
+on:
+  repository_dispatch:
+    types: [start_composing] # 响应你 Python 脚本里的信号
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Music Engine
+        env:
+          # 这里的歌词和风格是从你的 Python 脚本传过来的
+          LYRICS: ${{ github.event.client_payload.lyrics }}
+          STYLE: ${{ github.event.client_payload.style }}
+        run: |
+          # 这里我们调用 Hugging Face 的免费 YuE 算力接口
+          # 这样就不需要消耗 GitHub 昂贵的 GPU 额度，且速度极快
+          python -c "
+          from gradio_client import Client
+          import os
+          
+          # 这里的 'm-a-p/YuE-Music-1' 是目前最火的开源 YuE 空间
+          client = Client('m-a-p/YuE-Music-1')
+          result = client.predict(
+              lyrics=os.getenv('LYRICS'),
+              genre=os.getenv('STYLE'),
+              api_name='/predict'
+          )
+          print(f'歌曲生成成功：{result}')
+          "
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-rap-song
+          path: ./*.mp3 # 假设生成的文件后缀是 mp3
