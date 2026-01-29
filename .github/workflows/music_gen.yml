@@ -23,29 +23,34 @@ jobs:
         env:
           LYRICS: ${{ github.event.client_payload.lyrics }}
           STYLE: ${{ github.event.client_payload.style }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }} # 调用保险箱里的 Token
+          HF_TOKEN: ${{ secrets.HF_TOKEN }} 
         run: |
           python -c "
-          from gradio_client import Client
           import os
-          
-          # 使用 Token 登录并调用模型
-          client = Client('m-a-p/YuE-Music-1', hf_token=os.getenv('HF_TOKEN'))
-          
-          # 运行预测
-          result = client.predict(
-              lyrics=os.getenv('LYRICS'),
-              genre=os.getenv('STYLE'),
-              api_name='/predict'
-          )
-          print(f'歌曲已生成，存储路径：{result}')
-          
-          # 这一步是为了把生成的文件改名并移动到当前目录，方便后续上传
           import shutil
-          if isinstance(result, str):
-              shutil.copy(result, './final_song.mp3')
-          elif isinstance(result, list):
-              shutil.copy(result[0], './final_song.mp3')
+          from gradio_client import Client
+          
+          # 修正后的调用逻辑
+          try:
+              # 设置环境变量供库自动读取 Token
+              os.environ['HUGGINGFACE_TOKEN'] = os.getenv('HF_TOKEN')
+              
+              client = Client('m-a-p/YuE-Music-1')
+              
+              # predict 的参数根据 YuE 空间目前的 API 调整
+              result = client.predict(
+                  lyrics=os.getenv('LYRICS'),
+                  genre=os.getenv('STYLE'),
+                  api_name='/predict'
+              )
+              
+              # 处理返回结果 (YuE 通常返回文件路径列表)
+              audio_path = result[0] if isinstance(result, list) else result
+              shutil.copy(audio_path, './final_song.mp3')
+              print('Successfully generated music!')
+          except Exception as e:
+              print(f'Error: {e}')
+              exit(1)
           "
 
       - name: Upload Result
