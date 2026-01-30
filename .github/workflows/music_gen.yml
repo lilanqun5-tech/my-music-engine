@@ -9,13 +9,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
       - name: Install Dependencies
-        run: pip install gradio_client huggingface_hub
-
+        run: pip install gradio_client
       - name: Run Music Engine
         env:
-          LYRICS: ${{ github.event.client_payload.lyrics }}
           STYLE: ${{ github.event.client_payload.style }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -23,36 +24,31 @@ jobs:
           import os, shutil, sys
           from gradio_client import Client
           
-          token = os.getenv('HF_TOKEN')
-          # 换成目前在线的镜像节点
-          target_space = 'multimodalart/YuE-Music-1-Demo'
-          
           try:
-              print(f'Connecting to {target_space}...')
-              client = Client(target_space, token=token)
+              # 切换至更稳定的 Stable Audio 节点
+              client = Client('fffiloni/stable-audio-open-for-music-generation', token=os.getenv('HF_TOKEN'))
               
-              # 注意：镜像节点的参数名可能略有不同，通常为 genre 和 lyrics
+              print(f'Generating music for: {os.getenv(\"STYLE\")}')
+              # 该模型的接口参数通常为 prompt, seconds_total
               result = client.predict(
-                  genre=os.getenv('STYLE'),
-                  lyrics=os.getenv('LYRICS'),
+                  prompt=os.getenv('STYLE'),
+                  seconds_total=30,
                   api_name='/predict'
               )
               
-              # 处理返回的文件
-              audio_path = result[0] if isinstance(result, (list, tuple)) else result
-              if audio_path:
-                  shutil.copy(audio_path, './final_song.mp3')
-                  print('Success: Music generated!')
+              # 结果通常直接是文件路径
+              if result and os.path.exists(result):
+                  shutil.copy(result, './final_song.mp3')
+                  print('Success!')
               else:
-                  raise Exception('No audio file found in result')
+                  sys.exit(1)
           except Exception as e:
               print(f'Error: {e}')
               sys.exit(1)
           "
-
       - name: Upload Result
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-song
+          name: my-ai-music
           path: ./final_song.mp3
