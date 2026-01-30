@@ -21,21 +21,25 @@ jobs:
           from gradio_client import Client
           
           try:
-              # 换成目前全球最稳定的官方 MusicGen 节点
+              # 换成 Meta 官方最稳定的 MusicGen 接口
+              # 该接口由 Hugging Face 官方托管，稳定性极高
               client = Client('facebook/MusicGen', token=os.getenv('HF_TOKEN'))
               
-              print(f'Generator starting for: {os.getenv(\"STYLE\")}')
-              # 调用官方标准接口，生成 10-30 秒高质量音乐
+              print(f'Starting MusicGen for: {os.getenv(\"STYLE\")}')
+              
+              # 调用预测接口，生成 10-30 秒高质量音乐
               result = client.predict(
-                  os.getenv('STYLE'),    # 描述词
-                  None,                  # 参考音频 (设为无)
+                  os.getenv('STYLE'),    # 风格描述
+                  None,                  # 参考音频 (可选)
                   api_name='/predict'
               )
               
+              # 处理返回的文件
               if result and os.path.exists(result):
                   shutil.copy(result, './final_song.mp3')
-                  print('Success! Music generated.')
+                  print('Success: Music generated!')
               else:
+                  print('Error: Result is not a valid file path')
                   sys.exit(1)
           except Exception as e:
               print(f'Runtime Error: {e}')
@@ -45,5 +49,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-music-file
+          name: ai-music-output
           path: ./final_song.mp3
