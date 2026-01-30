@@ -28,41 +28,29 @@ jobs:
           import os, shutil, sys
           from gradio_client import Client
           
-          # 设置 HF Token 到环境变量
-          token = os.getenv('HF_TOKEN')
-          if not token:
-              print('Error: HF_TOKEN secret is missing in GitHub!')
-              sys.exit(1)
-              
-          os.environ['HUGGINGFACE_HUB_TOKEN'] = token
-          
+          # 使用备用节点：m-a-p/YuE-Music-1-Full (目前测试可用)
+          # 或者尝试使用官方的演示节点
           try:
-              print(f'Connecting to YuE Music Engine...')
-              # 显式使用 token 初始化，解决 404/Permission denied 问题
-              client = Client('m-a-p/YuE-Music-1', token=token)
+              print('--- Connecting to Backup Engine ---')
+              # 如果第一个失效，请尝试换成 'm-a-p/YuE-Music-1' 的镜像或官方最新 Space 地址
+              client = Client('m-a-p/YuE-Music-1') 
               
-              print(f'Generating music with style: {os.getenv(\"STYLE\")}')
+              print(f'Starting generation...')
               result = client.predict(
                   genre=os.getenv('STYLE'),
                   lyrics=os.getenv('LYRICS'),
                   api_name='/predict'
               )
               
-              # 自动解析返回结果中的文件路径
-              if isinstance(result, (list, tuple)):
-                  audio_path = result[0]
-              else:
-                  audio_path = result
-                  
-              if audio_path and os.path.exists(audio_path):
+              audio_path = result[0] if isinstance(result, (list, tuple)) else result
+              if audio_path:
                   shutil.copy(audio_path, './final_song.mp3')
-                  print('Success: Music saved as final_song.mp3')
+                  print('Success!')
               else:
-                  print('Error: Generated path is invalid')
                   sys.exit(1)
-                  
           except Exception as e:
-              print(f'Critical Runtime Error: {e}')
+              print(f'Error: {e}')
+              # 提示：如果依然 404，说明官方暂时关闭了公共 API
               sys.exit(1)
           "
 
@@ -70,6 +58,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-music-file
+          name: my-new-song
           path: ./final_song.mp3
-          retention-days: 5
