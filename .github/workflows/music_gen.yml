@@ -9,10 +9,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
       - name: Install Dependencies
         run: pip install gradio_client
       - name: Run Music Engine
@@ -25,33 +21,29 @@ jobs:
           from gradio_client import Client
           
           try:
-              # 换成 Meta 官方最稳定的 MusicGen 接口
-              # 只要你的 HF_TOKEN 是正确的，这个节点不会报 404
+              # 换成目前全球最稳定的官方 MusicGen 节点
               client = Client('facebook/MusicGen', token=os.getenv('HF_TOKEN'))
               
-              print(f'Starting MusicGen Engine for: {os.getenv(\"STYLE\")}')
-              
-              # 调用官方预测接口
+              print(f'Generator starting for: {os.getenv(\"STYLE\")}')
+              # 调用官方标准接口，生成 10-30 秒高质量音乐
               result = client.predict(
-                  os.getenv('STYLE'),    # 描述词 (Prompt)
-                  None,                  # 参考音频 (Optional)
+                  os.getenv('STYLE'),    # 描述词
+                  None,                  # 参考音频 (设为无)
                   api_name='/predict'
               )
               
-              # 自动提取生成的音频文件路径
               if result and os.path.exists(result):
                   shutil.copy(result, './final_song.mp3')
-                  print('AI 作曲成功！文件已保存。')
+                  print('Success! Music generated.')
               else:
-                  print('未找到生成的音频文件')
                   sys.exit(1)
           except Exception as e:
-              print(f'引擎运行出错: {e}')
+              print(f'Runtime Error: {e}')
               sys.exit(1)
           "
       - name: Upload Result
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-generated-music
+          name: ai-music-file
           path: ./final_song.mp3
