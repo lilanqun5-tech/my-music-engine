@@ -9,45 +9,55 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Install Dependencies
         run: pip install gradio_client huggingface_hub
+
       - name: Run Music Engine
         env:
           LYRICS: ${{ github.event.client_payload.lyrics }}
           STYLE: ${{ github.event.client_payload.style }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }} 
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python -c "
-          import os
-          import shutil
+          import os, shutil
           from gradio_client import Client
           
-          # 核心修正：通过环境变量隐式传递 Token
           os.environ['HUGGINGFACE_TOKEN'] = os.getenv('HF_TOKEN')
           
           try:
-              # 初始化时不带任何 token 参数，避开报错
+              # 连接 YuE 模型
               client = Client('m-a-p/YuE-Music-1')
               
+              # 调用接口生成音乐
+              # 这里的参数名要根据 YuE 的最新 API 调整，目前通常是 genre, lyrics 等
               result = client.predict(
-                  lyrics=os.getenv('LYRICS'),
                   genre=os.getenv('STYLE'),
+                  lyrics=os.getenv('LYRICS'),
                   api_name='/predict'
               )
               
-              # 处理路径
-              path = result[0] if isinstance(result, list) else result
-              shutil.copy(path, './final_song.mp3')
+              # 提取返回的音频路径
+              # result 通常是一个元组，第一个元素是生成的音频文件
+              path = result[0] if isinstance(result, (list, tuple)) else result
+              if path and os.path.exists(path):
+                  shutil.copy(path, './final_song.mp3')
+                  print('Success: Music generated at final_song.mp3')
+              else:
+                  print('Error: No file generated')
+                  exit(1)
           except Exception as e:
-              print(f'Error: {e}')
+              print(f'Runtime Error: {e}')
               exit(1)
           "
+
       - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: my-rap-song
+          name: ai-music-output
           path: ./final_song.mp3
