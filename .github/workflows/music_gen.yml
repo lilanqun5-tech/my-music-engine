@@ -10,11 +10,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
       - name: Install Dependencies
         run: pip install gradio_client huggingface_hub
 
@@ -28,29 +23,30 @@ jobs:
           import os, shutil, sys
           from gradio_client import Client
           
-          # 使用备用节点：m-a-p/YuE-Music-1-Full (目前测试可用)
-          # 或者尝试使用官方的演示节点
+          token = os.getenv('HF_TOKEN')
+          # 换成目前在线的镜像节点
+          target_space = 'multimodalart/YuE-Music-1-Demo'
+          
           try:
-              print('--- Connecting to Backup Engine ---')
-              # 如果第一个失效，请尝试换成 'm-a-p/YuE-Music-1' 的镜像或官方最新 Space 地址
-              client = Client('m-a-p/YuE-Music-1') 
+              print(f'Connecting to {target_space}...')
+              client = Client(target_space, token=token)
               
-              print(f'Starting generation...')
+              # 注意：镜像节点的参数名可能略有不同，通常为 genre 和 lyrics
               result = client.predict(
                   genre=os.getenv('STYLE'),
                   lyrics=os.getenv('LYRICS'),
                   api_name='/predict'
               )
               
+              # 处理返回的文件
               audio_path = result[0] if isinstance(result, (list, tuple)) else result
               if audio_path:
                   shutil.copy(audio_path, './final_song.mp3')
-                  print('Success!')
+                  print('Success: Music generated!')
               else:
-                  sys.exit(1)
+                  raise Exception('No audio file found in result')
           except Exception as e:
               print(f'Error: {e}')
-              # 提示：如果依然 404，说明官方暂时关闭了公共 API
               sys.exit(1)
           "
 
@@ -58,5 +54,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: my-new-song
+          name: ai-song
           path: ./final_song.mp3
