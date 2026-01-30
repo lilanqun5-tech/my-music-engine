@@ -25,30 +25,33 @@ jobs:
           from gradio_client import Client
           
           try:
-              # 切换至更稳定的 Stable Audio 节点
-              client = Client('fffiloni/stable-audio-open-for-music-generation', token=os.getenv('HF_TOKEN'))
+              # 换成 Meta 官方最稳定的 MusicGen 接口
+              # 只要你的 HF_TOKEN 是正确的，这个节点不会报 404
+              client = Client('facebook/MusicGen', token=os.getenv('HF_TOKEN'))
               
-              print(f'Generating music for: {os.getenv(\"STYLE\")}')
-              # 该模型的接口参数通常为 prompt, seconds_total
+              print(f'Starting MusicGen Engine for: {os.getenv(\"STYLE\")}')
+              
+              # 调用官方预测接口
               result = client.predict(
-                  prompt=os.getenv('STYLE'),
-                  seconds_total=30,
+                  os.getenv('STYLE'),    # 描述词 (Prompt)
+                  None,                  # 参考音频 (Optional)
                   api_name='/predict'
               )
               
-              # 结果通常直接是文件路径
+              # 自动提取生成的音频文件路径
               if result and os.path.exists(result):
                   shutil.copy(result, './final_song.mp3')
-                  print('Success!')
+                  print('AI 作曲成功！文件已保存。')
               else:
+                  print('未找到生成的音频文件')
                   sys.exit(1)
           except Exception as e:
-              print(f'Error: {e}')
+              print(f'引擎运行出错: {e}')
               sys.exit(1)
           "
       - name: Upload Result
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: my-ai-music
+          name: ai-generated-music
           path: ./final_song.mp3
